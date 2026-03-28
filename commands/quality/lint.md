@@ -1,8 +1,8 @@
 Run linting and standards compliance checks on the code in scope. Auto-fix everything possible. Use parallel agents to maximize speed. Scope resolution, autonomy, and `--dry-run` rules are defined in CLAUDE.md.
 
-## Phase 1: Detect tooling
+## Phase 1: Detect and bootstrap tooling
 
-Identify configured linters from project config files (ESLint, Biome, Prettier, ruff, mypy, pyright, etc.). If none configured, flag it and proceed with manual checks.
+Identify configured linters from project config files (ESLint, Biome, Prettier, ruff, mypy, pyright, etc.). If no linter is configured for the project's primary language, install and configure one (e.g., `npm init @eslint/config` for TS/JS, `ruff` for Python) so future runs are deterministic rather than relying on agent-based manual review. Report what was bootstrapped.
 
 ## Phase 2: Run project linters
 

@@ -8,7 +8,13 @@ Lock the file list at the start. All phases operate on the same set (plus test f
 
 **Fail-fast gate. If it doesn't build, stop.**
 
-First, measure the base branch bundle size: `git stash && npm run build` (or equivalent) on main, record the size, then `git stash pop` to restore. Then run the current branch build. Capture build status, current bundle size, and delta vs base branch. Fix compilation errors up to 2 iterations. If still broken, stop and report.
+Detect project type and run the appropriate build:
+
+- **Frontend (JS/TS with build script)**: measure base branch bundle size (`git stash && npm run build` on main, record size, `git stash pop`), then build current branch. Capture bundle size delta.
+- **Backend (server app with Dockerfile)**: run `docker build` to verify the image builds. Capture image size as the metric (not bundle size). If no Dockerfile, fall back to `tsc --noEmit` or `uv run python -m py_compile`.
+- **Backend (no Dockerfile)**: type-check only (`tsc --noEmit`, `mypy`, `pyright`, or `py_compile`).
+
+Fix compilation/build errors up to 2 iterations. If still broken, stop and report.
 
 ---
 
@@ -44,7 +50,8 @@ Re-run tests, linters, and build. Captures anything broken by audit fixes or sim
 
 - Tests: fix and re-run up to 2 iterations
 - Linters: confirm no regressions
-- Build: confirm compiles, capture bundle size delta vs Phase 1
+- Build: confirm compiles, capture size delta vs Phase 1 (bundle or Docker image, matching project type)
+- **Smoke test** (if the project has a runnable server): start the server, hit the health check endpoint (or `/` if no health check), confirm a 2xx response, then shut down. For Docker projects, `docker run` with a short timeout. This catches "builds but won't start" failures that unit tests miss.
 
 ---
 
@@ -58,12 +65,12 @@ Run the equivalent of `/git-verify`: deterministic scan first (gitleaks/truffleh
 
 | Phase | Key metrics |
 |-------|------------|
-| Build | PASS/FAIL, bundle size (delta if available) |
+| Build | PASS/FAIL, size metric (bundle or Docker image, delta if available) |
 | Lint | Issues fixed, standards violations, CVEs found/fixed, unfixable |
 | Audit | Found (by severity), fixed |
 | Tests | Files covered, coverage %, flaky tests |
 | Simplify | Changes made |
-| Validation | Tests PASS/FAIL, Linter PASS/FAIL, Build PASS/FAIL |
+| Validation | Tests PASS/FAIL, Linter PASS/FAIL, Build PASS/FAIL, Smoke test PASS/FAIL/SKIPPED |
 | Git | Secrets, sensitive files, large files, commit quality, branch state |
 
 Remaining items: anything unresolved, with reason.
@@ -84,7 +91,7 @@ Remaining items: anything unresolved, with reason.
 - Unfixed High audit findings
 - Critical/high severity CVEs
 - New/changed files with <80% line coverage
-- Bundle size >10% growth vs base branch
+- Size metric >10% growth vs base branch (bundle or Docker image)
 
 ### Verdict format
 
