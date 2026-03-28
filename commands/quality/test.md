@@ -12,7 +12,14 @@ Run the existing test suite. If tests fail, analyze whether the code or the test
 
 ## Phase 2: Write tests
 
-For each gap, write tests following conventions from Agent B. Prioritize: components > hooks > API endpoints > utilities > integration paths.
+For each gap, write tests following conventions from Agent B. Prioritize by complexity and risk, not by ease:
+
+1. **Complex components first**: components with user input, form state, conditional rendering, or dynamic content (these are where bugs hide)
+2. **API endpoints and data flow**: request handling, validation, error paths
+3. **Hooks with side effects**: state transitions, cleanup, async operations
+4. **Simpler components and utilities**: only after high-risk files are covered
+
+**Do not skip complex files in favor of easy wins.** If a component is hard to test, that is a signal it needs tests most. Target >=80% line coverage on every file in scope before moving to the next.
 
 Rules:
 - One test file per source file, matching project naming convention
