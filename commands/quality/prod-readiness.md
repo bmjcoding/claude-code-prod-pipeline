@@ -10,11 +10,11 @@ Lock the file list at the start. All phases operate on the same set (plus test f
 
 Detect project type and run the appropriate build:
 
-- **Frontend (JS/TS with build script)**: measure base branch bundle size (`git stash && npm run build` on main, record size, `git stash pop`), then build current branch. Capture bundle size delta.
-- **Backend (server app with Dockerfile)**: run `docker build` to verify the image builds. Capture image size as the metric (not bundle size). If no Dockerfile, fall back to `tsc --noEmit` or `uv run python -m py_compile`.
-- **Backend (no Dockerfile)**: type-check only (`tsc --noEmit`, `mypy`, `pyright`, or `py_compile`).
+- **Frontend**: build current branch, measure bundle size delta vs base branch
+- **Backend with Dockerfile**: `docker build`, capture image size
+- **Backend without Dockerfile**: type-check only (`tsc --noEmit`, `mypy`, `pyright`, or `py_compile`)
 
-Fix compilation/build errors up to 2 iterations. If still broken, stop and report.
+Fix build errors up to 2 iterations. If still broken, stop and report.
 
 ---
 
@@ -51,7 +51,7 @@ Re-run tests, linters, and build. Captures anything broken by audit fixes or sim
 - Tests: fix and re-run up to 2 iterations
 - Linters: confirm no regressions
 - Build: confirm compiles, capture size delta vs Phase 1 (bundle or Docker image, matching project type)
-- **Smoke test** (if the project has a runnable server): start the server, hit the health check endpoint (or `/` if no health check), confirm a 2xx response, then shut down. For Docker projects, `docker run` with a short timeout. This catches "builds but won't start" failures that unit tests miss.
+- **Smoke test** (server projects only): start server, hit health check endpoint, confirm 2xx, shut down. For Docker projects, `docker run` with a short timeout.
 
 ---
 

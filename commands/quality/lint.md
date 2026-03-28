@@ -2,7 +2,7 @@ Run linting and standards compliance checks on the code in scope. Auto-fix every
 
 ## Phase 1: Detect and bootstrap tooling
 
-Identify configured linters from project config files (ESLint, Biome, Prettier, ruff, mypy, pyright, etc.). If no linter is configured for the project's primary language, install and configure one (e.g., `npm init @eslint/config` for TS/JS, `ruff` for Python) so future runs are deterministic rather than relying on agent-based manual review. Report what was bootstrapped.
+Identify configured linters from project config files (ESLint, Biome, Prettier, ruff, mypy, pyright, etc.). If none configured for the project's primary language, install and configure one. Report what was bootstrapped.
 
 ## Phase 2: Run project linters
 
