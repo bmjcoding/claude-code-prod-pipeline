@@ -1,0 +1,106 @@
+Execute all phases below in sequence. Each phase builds on the previous one's artifacts. Scope resolution, autonomy, and `--dry-run` rules are defined in CLAUDE.md.
+
+Lock the file list at the start. All phases operate on the same set (plus test files created in Phase 4).
+
+---
+
+## Phase 1: Build verification
+
+**Fail-fast gate. If it doesn't build, stop.**
+
+First, measure the base branch bundle size: `git stash && npm run build` (or equivalent) on main, record the size, then `git stash pop` to restore. Then run the current branch build. Capture build status, current bundle size, and delta vs base branch. Fix compilation errors up to 2 iterations. If still broken, stop and report.
+
+---
+
+## Phase 2: Lint
+
+Run the equivalent of `/lint`: project linters with auto-fix, then parallel agents for logging standards (structured logging, correlation IDs), complexity, naming/exports, dependency hygiene/CVEs.
+
+---
+
+## Phase 3: Audit
+
+Run the equivalent of `/audit`: all 14 dimensions. Report as severity-grouped table, then fix everything possible in parallel.
+
+---
+
+## Phase 4: Test
+
+Run the equivalent of `/test`: green baseline, reconnaissance, write coverage gaps, run and iterate. Flag flaky tests separately.
+
+---
+
+## Phase 5: Simplify
+
+Review all code changed during this run for reuse, quality, and efficiency. Fix without changing behavior. Preserve test coverage.
+
+**Guards**: if simplify would touch >10 files or >200 net lines changed, split remaining simplifications into a follow-up recommendation and report as "deferred to next pass." For each changed file, include a one-line "behavior preserved because..." note so Phase 6 can validate intent.
+
+---
+
+## Phase 6: Final validation
+
+Re-run tests, linters, and build. Captures anything broken by audit fixes or simplification.
+
+- Tests: fix and re-run up to 2 iterations
+- Linters: confirm no regressions
+- Build: confirm compiles, capture bundle size delta vs Phase 1
+
+---
+
+## Phase 7: Git verification
+
+Run the equivalent of `/git-verify`: deterministic scan first (gitleaks/trufflehog if available), then agent scan for secrets, sensitive files, large files, commit quality, branch state. **Secrets are a NO-SHIP condition, not a warning.**
+
+---
+
+## Final Report
+
+| Phase | Key metrics |
+|-------|------------|
+| Build | PASS/FAIL, bundle size (delta if available) |
+| Lint | Issues fixed, standards violations, CVEs found/fixed, unfixable |
+| Audit | Found (by severity), fixed |
+| Tests | Files covered, coverage %, flaky tests |
+| Simplify | Changes made |
+| Validation | Tests PASS/FAIL, Linter PASS/FAIL, Build PASS/FAIL |
+| Git | Secrets, sensitive files, large files, commit quality, branch state |
+
+Remaining items: anything unresolved, with reason.
+
+---
+
+## Ship Verdict
+
+### Blocking (NO-SHIP if any fail)
+- Build must compile
+- Test suite must be green (flaky excluded)
+- Coverage must not decrease from baseline
+- New/changed files must have >=80% line coverage (Warning if not, see below)
+- Zero secrets found
+- Zero unfixed Critical audit findings
+
+### Warning (SHIP WITH CAUTION)
+- Unfixed High audit findings
+- Critical/high severity CVEs
+- New/changed files with <80% line coverage
+- Bundle size >10% growth vs base branch
+
+### Verdict format
+
+```
+VERDICT: NO-SHIP | SHIP WITH CAUTION | CLEAR TO SHIP
+[reasons]
+```
+
+---
+
+## Auto-ship (`--ship` flag)
+
+If `$ARGUMENTS` contains `--ship` (or `--ship --draft`, `--ship --auto-merge`):
+
+- **CLEAR TO SHIP**: automatically proceed to run `/ship` with any flags passed after `--ship`. Commit all changes from this run, push, and open PR.
+- **SHIP WITH CAUTION**: print the warnings, then proceed to `/ship` (warnings are advisory, not blocking).
+- **NO-SHIP**: stop. Do not ship. Print the blocking reasons and what must be fixed.
+
+If `--ship` is not present, print the verdict and stop. The user runs `/ship` manually when ready.
