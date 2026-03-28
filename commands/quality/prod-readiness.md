@@ -1,6 +1,8 @@
-Execute all phases below in sequence. Each phase builds on the previous one's artifacts. Scope resolution, autonomy, and `--dry-run` rules are defined in CLAUDE.md.
+Execute all phases below. Scope resolution, autonomy, and `--dry-run` rules are defined in CLAUDE.md.
 
 Lock the file list at the start. All phases operate on the same set (plus test files created in Phase 4).
+
+**Hard rule: do not print the Ship Verdict until ALL phases have completed and ALL agent results have returned. No early verdicts.**
 
 ---
 
@@ -18,33 +20,32 @@ Fix build errors up to 2 iterations. If still broken, stop and report.
 
 ---
 
-## Phase 2: Lint
+## Phase 2+3: Lint and Audit (parallel)
 
-Run the equivalent of `/lint`: project linters with auto-fix, then parallel agents for logging standards (structured logging, correlation IDs), complexity, naming/exports, dependency hygiene/CVEs.
+Lint and audit are independent. Run them in parallel:
+
+- **Lint**: run the equivalent of `/lint`. Project linters with auto-fix, then parallel agents for logging standards (structured logging, correlation IDs), complexity, naming/exports, dependency hygiene/CVEs.
+- **Audit**: run the equivalent of `/audit`. All 14 dimensions. Report as severity-grouped table.
+
+Wait for BOTH to complete. Then fix everything possible in parallel, partitioned by file ownership.
 
 ---
 
-## Phase 3: Audit
-
-Run the equivalent of `/audit`: all 14 dimensions. Report as severity-grouped table, then fix everything possible in parallel.
-
----
-
-## Phase 4: Test
+## Phase 3: Test
 
 Run the equivalent of `/test`: green baseline, reconnaissance, write coverage gaps, run and iterate. Flag flaky tests separately.
 
 ---
 
-## Phase 5: Simplify
+## Phase 4: Simplify
 
-Review all code changed during this run for reuse, quality, and efficiency. Fix without changing behavior. Preserve test coverage.
+Review all code changed during this run for reuse, quality, and efficiency. Fix without changing behavior. Preserve test coverage. Cross-reference lint/audit findings for unused dependencies, dead exports, and redundant code that those phases flagged but did not remove.
 
-**Guards**: if simplify would touch >10 files or >200 net lines changed, split remaining simplifications into a follow-up recommendation and report as "deferred to next pass." For each changed file, include a one-line "behavior preserved because..." note so Phase 6 can validate intent.
+**Guards**: if simplify would touch >10 files or >200 net lines changed, split remaining simplifications into a follow-up recommendation and report as "deferred to next pass." For each changed file, include a one-line "behavior preserved because..." note so Phase 5 can validate intent.
 
 ---
 
-## Phase 6: Final validation
+## Phase 5: Final validation
 
 Re-run tests, linters, and build. Captures anything broken by audit fixes or simplification.
 
@@ -55,7 +56,7 @@ Re-run tests, linters, and build. Captures anything broken by audit fixes or sim
 
 ---
 
-## Phase 7: Git verification
+## Phase 6: Git verification
 
 Run the equivalent of `/git-verify`: deterministic scan first (gitleaks/trufflehog if available), then agent scan for secrets, sensitive files, large files, commit quality, branch state. **Secrets are a NO-SHIP condition, not a warning.**
 
@@ -89,6 +90,7 @@ Remaining items: anything unresolved, with reason.
 
 ### Warning (SHIP WITH CAUTION)
 - Unfixed High audit findings
+- >5 deferred High items across all phases
 - Critical/high severity CVEs
 - New/changed files with <80% line coverage
 - Size metric >10% growth vs base branch (bundle or Docker image)
