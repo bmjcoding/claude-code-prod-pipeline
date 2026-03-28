@@ -38,4 +38,4 @@ Rules:
 | File | Tests Written | Status | Notes |
 |------|--------------|--------|-------|
 
-Coverage, flaky tests, and untestable files listed below the table.
+Coverage, flaky tests, and untestable files listed below the table. Write any untestable files or deferred coverage gaps to `.claude/backlog.md` (see `/backlog` for format).

@@ -4,6 +4,10 @@ Lock the file list at the start. All phases operate on the same set (plus test f
 
 **Hard rule: do not print the Ship Verdict until ALL phases have completed and ALL agent results have returned. No early verdicts.**
 
+## Phase 0: Backlog check
+
+Read `.claude/backlog.md` if it exists. Check whether any previously-deferred items have been resolved by changes in the current scope (file modified, dep removed, endpoint added). Mark resolved items and report them. Flag any unresolved Critical/High items as carry-forward findings in the final report.
+
 ---
 
 ## Phase 1: Build verification
@@ -113,3 +117,14 @@ If `$ARGUMENTS` contains `--ship` (or `--ship --draft`, `--ship --auto-merge`):
 - **NO-SHIP**: stop. Do not ship. Print the blocking reasons and what must be fixed.
 
 If `--ship` is not present, print the verdict and stop. The user runs `/ship` manually when ready.
+
+---
+
+## Backlog update
+
+As the final step (after verdict, before auto-ship), write all deferred and unresolved items to `.claude/backlog.md`. Classify each item:
+
+- **Needs Human Decision**: requires external context (credentials, infra choices, stakeholder input, compliance, auth strategy)
+- **Agent Actionable**: pure code work (stubs, tooling config, middleware, tests, dep cleanup)
+
+Each entry: severity, file, one-line description, which phase flagged it, date added. Merge with existing backlog items rather than overwriting. Do not duplicate items already present.

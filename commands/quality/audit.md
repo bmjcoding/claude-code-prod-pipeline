@@ -23,4 +23,4 @@ Single markdown table: #, Severity, File, Issue, Suggested Fix. Grouped by sever
 
 ## After reporting
 
-Fix everything possible in parallel using agents grouped by file ownership. Do not ask for confirmation.
+Fix everything possible in parallel using agents grouped by file ownership. Do not ask for confirmation. Write any unfixed or deferred items to `.claude/backlog.md` (see `/backlog` for format), classified as "Needs Human Decision" or "Agent Actionable".
