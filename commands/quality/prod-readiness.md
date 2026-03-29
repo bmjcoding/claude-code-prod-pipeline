@@ -31,13 +31,25 @@ Lint and audit are independent. Run them in parallel:
 - **Lint**: run the equivalent of `/lint`. Project linters with auto-fix, then parallel agents for logging standards (structured logging, correlation IDs), complexity, naming/exports, dependency hygiene/CVEs.
 - **Audit**: run the equivalent of `/audit`. All 14 dimensions. Report as severity-grouped table.
 
-Wait for BOTH to complete. Then fix everything possible in parallel, partitioned by file ownership.
+**SYNCHRONIZATION GATE: You MUST wait for BOTH lint and audit to fully complete and return their findings before moving to any subsequent phase.** Do NOT proceed to Phase 3 while lint or audit agents are still running in the background. If you launched them as background agents, block here and collect all results. Apply fixes from both lint and audit in parallel, partitioned by file ownership. Only then move to Phase 3.
 
 ---
 
 ## Phase 3: Test
 
 Run the equivalent of `/test`: green baseline, reconnaissance, write coverage gaps, run and iterate. Flag flaky tests separately.
+
+---
+
+## Phase 3.5: Integration test (if applicable)
+
+If the project has integration points (multiple modules, IPC, filesystem protocols, config-driven behavior):
+
+- Verify module interfaces by testing cross-module calls with real (not mocked) dependencies where feasible
+- For orchestrator/CLI projects: test end-to-end flows with mocked external commands
+- For API projects: test request→response chains through the actual handler stack
+
+Skip if the project is a single-module library with no integration surfaces.
 
 ---
 
