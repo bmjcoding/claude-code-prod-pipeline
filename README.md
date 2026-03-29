@@ -1,35 +1,44 @@
 # Claude Code Production Pipeline
 
-A complete production-readiness pipeline for [Claude Code](https://claude.ai/claude-code). Nine slash commands, one pre-push hook, and a set of safety rails that take code from "I think this is done" to "verified ready to ship."
+Manual checklists don't scale. Under deadline pressure, discipline degrades, and critical operational questions like "will our logs tell us why this broke at 3am?" are often ignored in favor of simply checking syntax and code quality.
 
-## Quick Start
+You cannot rely on human memory for deployment safety. You have to engineer the standard. So I built a local quality gate using Claude Code that takes a branch from "I think this is done" to "verified ready to ship." One command. Zero cognitive load.
 
+```
+/prod-readiness --ship
+```
+
+## The Sequence
+
+1. **Build**: fail-fast compilation, size metric captured vs base branch
+2. **Lint + Audit** (parallel): linters/standards/CVEs + 14-dimension code review
+3. **Test**: baseline verification, coverage gaps, flaky test quarantine
+4. **Simplify**: bounded, behavior-preserving refactoring
+5. **Validate**: full regression catch, smoke test, deterministic secrets scan
+6. **Backlog**: deferred items written to `.claude/backlog.md`, classified as human-decision or agent-actionable
+
+The verdict: **NO-SHIP**, **SHIP WITH CAUTION**, or **CLEAR TO SHIP**.
+
+If clear, the pipeline auto-commits, rebases, pushes, and opens the PR.
+
+## Setup
+
+1. Copy the commands to your Claude Code commands directory:
 ```bash
-git clone https://github.com/bmjcoding/claude-code-prod-pipeline.git
-cd claude-code-prod-pipeline
-chmod +x install.sh
-./install.sh
+cp commands/quality/*.md ~/.claude/commands/
+cp commands/workflow/*.md ~/.claude/commands/
 ```
 
-The installer copies commands to `~/.claude/commands/`, appends pipeline rules to `~/.claude/CLAUDE.md`, and merges the pre-push secrets hook into `~/.claude/settings.json`.
-
-## The Pipeline
-
+2. Append the pipeline rules to your global CLAUDE.md:
+```bash
+cat config/CLAUDE.md >> ~/.claude/CLAUDE.md
 ```
-/prod-readiness --ship --auto-merge
 
-Phase 1: Build         fail-fast gate, captures bundle size vs main
-Phase 2: Lint          linters + structured logging + complexity + CVEs
-Phase 3: Audit         14 dimensions (correctness to operational resilience)
-Phase 4: Test          green baseline, coverage gaps, flaky quarantine
-Phase 5: Simplify      bounded refactoring, behavior-preserved
-Phase 6: Validate      full regression catch after all fixes
-Phase 7: Git verify    deterministic + LLM secrets scan, files, commits
+3. Merge the pre-push secrets hook into your `~/.claude/settings.json`. Copy the `hooks` block from `hooks/pre-push-secrets.json` into your existing settings file. If you already have a `hooks.PreToolUse` array, add the entry to it.
 
-Ship Verdict:          NO-SHIP / SHIP WITH CAUTION / CLEAR TO SHIP
-
-/ship                  commit, rebase, push, PR, auto-merge, branch cleanup
-Pre-push hook          gitleaks or grep secrets gate (blocks push, cannot bypass)
+4. (Optional) Install gitleaks for deeper secrets scanning:
+```bash
+brew install gitleaks
 ```
 
 ## Commands
@@ -42,7 +51,8 @@ Pre-push hook          gitleaks or grep secrets gate (blocks push, cannot bypass
 | `/audit` | 14-dimension code review: correctness, error handling, security, accessibility, type safety, redundancy, over-engineering, simplicity, responsiveness, mock data, config/env, API contract consistency, observability, operational resilience |
 | `/test` | Green baseline check, parallel reconnaissance (coverage gaps + convention scan), write tests matching project patterns, flaky test detection and quarantine |
 | `/git-verify` | Deterministic secrets scan (gitleaks/trufflehog), agent-level credential analysis, sensitive files, large binaries, commit message quality, branch state |
-| `/prod-readiness` | 7-phase orchestrator chaining all quality commands with a ship verdict |
+| `/backlog` | Read, resolve, retriage, and filter deferred items from prior runs |
+| `/prod-readiness` | 6-phase orchestrator chaining all quality commands with a ship verdict |
 
 ### Git Workflow
 
@@ -78,6 +88,7 @@ Pre-push hook          gitleaks or grep secrets gate (blocks push, cannot bypass
 /audit --dry-run
 /test src/api/
 /git-verify
+/backlog --agent
 ```
 
 ## Quality Gates
@@ -91,13 +102,22 @@ Pre-push hook          gitleaks or grep secrets gate (blocks push, cannot bypass
 
 ### Warning (SHIP WITH CAUTION)
 - Unfixed High audit findings
+- More than 5 deferred High items across all phases
 - Critical/high severity CVEs in dependencies
 - New/changed files with less than 80% line coverage
-- Bundle size growth exceeding 10% vs base branch
+- Bundle/image size growth exceeding 10% vs base branch
+
+## Backlog System
+
+Every pipeline run writes deferred and unresolved items to `.claude/backlog.md`, classified into two categories:
+
+**Needs Human Decision**: items requiring external context (credentials, infrastructure choices, stakeholder sign-off, auth strategy).
+
+**Agent Actionable**: pure code work an agent can pick up autonomously in the next session (stubs, tooling config, middleware, dep cleanup).
+
+The next `/prod-readiness` run reads the backlog at startup, checks if prior items were resolved, and carries forward anything still open. `/backlog --agent` shows what an autonomous session can fix. `/backlog --retriage` re-checks all items against the current codebase.
 
 ## Safety Rails
-
-These apply globally across all commands:
 
 - **Single writer per file**: parallel agents are partitioned by file ownership to prevent conflicting edits
 - **Protected file classes**: lockfiles, CI/CD configs, migration files, infrastructure code, and auth/security modules are never auto-modified. Findings are reported but require explicit intent.
@@ -114,11 +134,7 @@ A `PreToolUse` hook in `settings.json` intercepts every `git push`:
 
 This is the one layer that cannot be bypassed, even if you skip `/prod-readiness` and push directly.
 
-Optional: `brew install gitleaks` for deeper scanning with 700+ patterns and entropy analysis.
-
 ## Audit Dimensions
-
-The `/audit` command (and Phase 3 of `/prod-readiness`) covers 14 dimensions:
 
 1. **Correctness** - edge cases, null paths, race conditions, stale closures
 2. **Error handling** - loading/error/empty states on async ops, no silent swallows
@@ -150,10 +166,11 @@ Git workflow commands (`/ship`, `/pr`, `/merge`, `/cleanup`) auto-detect the pro
 commands/
   quality/
     audit.md            14-dimension code review
+    backlog.md          Deferred items manager
     lint.md             Linters + standards + CVEs
     test.md             Coverage with flaky detection
     git-verify.md       Secrets, files, commits, branch
-    prod-readiness.md   7-phase orchestrator + verdict
+    prod-readiness.md   6-phase orchestrator + verdict
   workflow/
     ship.md             Commit, push, PR, auto-merge
     pr.md               Push + open PR
@@ -167,7 +184,6 @@ docs/
   commands.md           Detailed command reference
   customization.md      Tuning thresholds and adding dimensions
   architecture.md       Design decisions and safety rails
-install.sh              One-command installer
 ```
 
 ## Customization
@@ -182,7 +198,7 @@ See [docs/customization.md](docs/customization.md) for:
 
 - [Claude Code](https://claude.ai/claude-code) CLI
 - `git`
-- `jq` (for install script and Bitbucket DC API parsing)
+- `jq` (for Bitbucket DC API parsing)
 - `gh` CLI (GitHub projects only)
 - `gitleaks` (optional, recommended: `brew install gitleaks`)
 

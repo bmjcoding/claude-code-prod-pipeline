@@ -78,7 +78,7 @@ Edit `hooks/pre-push-secrets.json` to modify the grep patterns or add new ones. 
 - `glpat-[a-zA-Z0-9-]{20}` - GitLab personal access tokens
 - `eyJ[a-zA-Z0-9_-]{20,}\.eyJ` - JWTs
 
-To add a pattern, extend the grep regex in the `command` field. After editing, re-run `./install.sh` or manually merge the JSON into your `~/.claude/settings.json`.
+To add a pattern, extend the grep regex in the `command` field, then merge the updated JSON into your `~/.claude/settings.json`.
 
 ## Per-project Overrides
 
